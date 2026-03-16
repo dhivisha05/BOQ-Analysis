@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()  # Load .env before anything else
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
@@ -32,6 +35,7 @@ async def root():
         "endpoints": [
             "POST /extract",
             "POST /upload-excel",
+            "POST /extract-langgraph",
             "POST /analyze",
             "POST /risk",
             "GET /graph-stats",

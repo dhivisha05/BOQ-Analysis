@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import {
-  FileSpreadsheet, Layers, Package, ShieldAlert,
-  TrendingUp, AlertTriangle, CheckCircle2
+  FileSpreadsheet, Layers, Package, TrendingUp
 } from 'lucide-react';
+import VendorMailPanel from './VendorMailPanel';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid
@@ -19,9 +19,6 @@ const CATEGORY_COLORS_MAP = {
   'Other': '#64748b',
   'Uncategorized': '#9ca3af',
 };
-
-const RISK_COLORS = { High: 'text-red-600 bg-red-50', Medium: 'text-amber-600 bg-amber-50', Low: 'text-green-600 bg-green-50' };
-const RISK_ICONS = { High: AlertTriangle, Medium: ShieldAlert, Low: CheckCircle2 };
 
 export default function ResultsDashboard({ results, analyticsData, riskData }) {
   if (!results) return null;
@@ -44,9 +41,6 @@ export default function ResultsDashboard({ results, analyticsData, riskData }) {
     }))
     .sort((a, b) => b.count - a.count);
 
-  const riskLevel = riskData?.risk_level || 'Low';
-  const RiskIcon = RISK_ICONS[riskLevel];
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -54,7 +48,7 @@ export default function ResultsDashboard({ results, analyticsData, riskData }) {
       className="space-y-6"
     >
       {/* ── Stats Cards ───────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           icon={FileSpreadsheet}
           label="Total Sheets"
@@ -73,13 +67,6 @@ export default function ResultsDashboard({ results, analyticsData, riskData }) {
           label="Categories"
           value={catEntries.filter(([k]) => k !== 'Uncategorized').length}
           color="purple"
-        />
-        <StatCard
-          icon={ShieldAlert}
-          label="Risk Score"
-          value={riskData ? riskData.risk_score : '—'}
-          sub={riskData ? riskData.risk_level : ''}
-          color={riskLevel === 'High' ? 'red' : riskLevel === 'Medium' ? 'amber' : 'green'}
         />
       </div>
 
@@ -137,35 +124,6 @@ export default function ResultsDashboard({ results, analyticsData, riskData }) {
         </div>
       )}
 
-      {/* ── Risk Flags ────────────────────────────────────── */}
-      {riskData && riskData.flags && riskData.flags.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <RiskIcon className={`w-5 h-5 ${RISK_COLORS[riskLevel].split(' ')[0]}`} />
-            <h3 className="text-sm font-semibold text-slate-700">Risk Assessment</h3>
-            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${RISK_COLORS[riskLevel]}`}>
-              {riskLevel}
-            </span>
-          </div>
-          <div className="space-y-3">
-            {riskData.flags.map((flag, i) => (
-              <div key={i} className="flex items-start gap-3 text-sm">
-                <span className={`mt-0.5 px-2 py-0.5 rounded text-xs font-medium
-                  ${flag.severity === 'High' ? 'bg-red-100 text-red-700' :
-                    flag.severity === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                    'bg-green-100 text-green-700'}`}>
-                  {flag.severity}
-                </span>
-                <div>
-                  <p className="text-slate-700">{flag.message}</p>
-                  <p className="text-slate-400 text-xs mt-0.5">{flag.recommendation}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* ── Top 5 by Quantity ─────────────────────────────── */}
       {analyticsData && analyticsData.top_5_by_quantity?.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -188,6 +146,12 @@ export default function ResultsDashboard({ results, analyticsData, riskData }) {
           </div>
         </div>
       )}
+
+      {/* ── Vendor Mail Panel ─────────────────────────────── */}
+      <VendorMailPanel
+        items={results.items || []}
+        projectName="Construction Project"
+      />
     </motion.div>
   );
 }
