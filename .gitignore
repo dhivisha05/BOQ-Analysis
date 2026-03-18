@@ -7,3 +7,5 @@ dist/
 *.egg-info/
 .venv/
 package-lock.json
+*.db
+*.sqlite3

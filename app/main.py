@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from app.api.routes import router
+from app.api.auth_routes import auth_router
 
 app = FastAPI(
     title="MyFlyai — Construction BOQ Intelligence",
@@ -24,6 +25,7 @@ app.add_middleware(
 
 # Mount all routes
 app.include_router(router)
+app.include_router(auth_router)
 
 
 @app.get("/")
