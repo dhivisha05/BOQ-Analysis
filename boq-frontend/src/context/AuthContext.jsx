@@ -68,18 +68,22 @@ export function AuthProvider({ children }) {
 
   // ── Listen to auth state changes ──────────────────────────────────────
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        BoqService.setAuthToken(s.access_token);
-        fetchProfile(s.user.id);
-      }
-      setAuthLoading(false);
-    });
+    let settled = false;
+    const settle = () => { if (!settled) { settled = true; setAuthLoading(false); } };
 
-    // Subscribe to changes
+    // Safety timeout — never stay stuck on "Loading FlyyyAI..." for more than 3s
+    const timer = setTimeout(() => {
+      if (!settled) {
+        console.warn('[Auth] Session check timed out — redirecting to login');
+        supabase.auth.signOut().catch(() => {});
+        setUser(null);
+        setSession(null);
+        setProfile(null);
+        settle();
+      }
+    }, 3000);
+
+    // Subscribe to auth changes FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, s) => {
         setSession(s);
@@ -91,10 +95,28 @@ export function AuthProvider({ children }) {
           setProfile(null);
           BoqService.setAuthToken(null);
         }
+        settle();
       }
     );
 
-    return () => subscription.unsubscribe();
+    // Then get initial session
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
+      setUser(s?.user ?? null);
+      if (s?.user) {
+        BoqService.setAuthToken(s.access_token);
+        fetchProfile(s.user.id).catch(() => {});
+      }
+      settle();
+    }).catch((err) => {
+      console.error('[Auth] getSession failed:', err);
+      settle();
+    });
+
+    return () => {
+      clearTimeout(timer);
+      subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   // ── Sign up with email + password ─────────────────────────────────────

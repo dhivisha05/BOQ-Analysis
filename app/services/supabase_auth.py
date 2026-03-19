@@ -21,7 +21,16 @@ SUPABASE_URL        = os.getenv("SUPABASE_URL", "")
 SUPABASE_ANON_KEY   = os.getenv("SUPABASE_ANON_KEY", "")
 
 # Fallback to old JWT secret for backward compatibility
-_JWT_SECRET = SUPABASE_JWT_SECRET or os.getenv("JWT_SECRET", "flyyai-jwt-secret-change-in-production")
+_JWT_SECRET_RAW = SUPABASE_JWT_SECRET or os.getenv("JWT_SECRET", "flyyai-jwt-secret-change-in-production")
+
+# Supabase uses the raw secret string as HMAC key (UTF-8 encoded)
+_JWT_SECRET_BYTES = _JWT_SECRET_RAW.encode("utf-8")
+
+# Also keep base64-decoded version as fallback
+try:
+    _JWT_SECRET_BYTES_B64 = base64.b64decode(_JWT_SECRET_RAW)
+except Exception:
+    _JWT_SECRET_BYTES_B64 = None
 
 
 # ── Base64 helpers ──────────────────────────────────────────────────────────────
@@ -48,16 +57,22 @@ def verify_supabase_token(token: str) -> Optional[Dict]:
             return None
 
         h, p, s = parts
+        msg = f"{h}.{p}".encode()
 
-        # Verify signature using HMAC-SHA256
-        expected_sig = _b64e(hmac.new(
-            _JWT_SECRET.encode(),
-            f"{h}.{p}".encode(),
-            hashlib.sha256,
-        ).digest())
+        # Try raw UTF-8 secret first, then base64-decoded
+        verified = False
+        for secret_bytes in [_JWT_SECRET_BYTES, _JWT_SECRET_BYTES_B64]:
+            if secret_bytes is None:
+                continue
+            expected_sig = _b64e(hmac.new(
+                secret_bytes, msg, hashlib.sha256,
+            ).digest())
+            if hmac.compare_digest(expected_sig, s):
+                verified = True
+                break
 
-        if not hmac.compare_digest(expected_sig, s):
-            logger.debug("[SupaAuth] Signature mismatch")
+        if not verified:
+            logger.debug("[SupaAuth] Signature mismatch (tried both raw and b64 secrets)")
             return None
 
         # Decode payload
