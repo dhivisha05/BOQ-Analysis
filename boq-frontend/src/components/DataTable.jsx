@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Package, Search } from 'lucide-react';
+import {
+  listItemVariants,
+  listVariants,
+  panelVariants,
+} from '../lib/motion';
 
 const CATEGORY_COLORS = {
   'Civil & Structural':    '#2563eb',
@@ -47,18 +52,28 @@ export default function DataTable({
 
   if (!items || items.length === 0) {
     return (
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-16 text-center">
+      <motion.div
+        variants={panelVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        className="bg-white border border-slate-200 rounded-2xl shadow-sm p-16 text-center"
+      >
         <Package size={48} className="mx-auto mb-4 text-slate-200" />
         <p className="text-sm text-slate-400">{emptyMessage}</p>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-      className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+    <motion.div
+      variants={panelVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
+    >
 
-      {/* Header */}
       <div className="px-6 py-4 flex items-center justify-between gap-4 border-b border-slate-200 bg-slate-50">
         <div>
           <h3 className="text-base font-semibold text-slate-800">
@@ -109,11 +124,16 @@ export default function DataTable({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <motion.tbody
+              variants={listVariants}
+              initial="initial"
+              animate="animate"
+              className="divide-y divide-slate-100"
+            >
               {filtered.map((item, idx) => {
                 const catColor = getCatColor(item.category);
                 return (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                  <motion.tr key={idx} variants={listItemVariants} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-4 text-sm text-slate-400 font-medium">{idx + 1}</td>
                     <td className="px-5 py-4 text-slate-800 font-medium max-w-md">
                       <span className="text-sm leading-relaxed">{item.description}</span>
@@ -135,10 +155,10 @@ export default function DataTable({
                         {item.category || 'General'}
                       </span>
                     </td>
-                  </tr>
+                  </motion.tr>
                 );
               })}
-            </tbody>
+            </motion.tbody>
           </table>
         </div>
       )}

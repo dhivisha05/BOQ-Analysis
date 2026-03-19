@@ -1,6 +1,8 @@
 import { Building2, LogOut, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import { iconHoverMotion, subtleButtonMotion } from '../lib/motion';
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -14,9 +16,12 @@ export default function Header() {
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-
-        {/* Brand */}
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/dashboard')}>
+        <motion.button
+          {...subtleButtonMotion}
+          type="button"
+          className="flex items-center gap-3 cursor-pointer"
+          onClick={() => navigate('/dashboard')}
+        >
           <div className="rounded-lg p-2 bg-blue-600">
             <Building2 size={20} className="text-white" />
           </div>
@@ -28,12 +33,12 @@ export default function Header() {
               Construction Intelligence
             </p>
           </div>
-        </div>
+        </motion.button>
 
-        {/* Right: user info + logout */}
         {user ? (
           <div className="flex items-center gap-4">
-            <button
+            <motion.button
+              {...subtleButtonMotion}
               onClick={() => navigate('/profile')}
               className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
             >
@@ -48,16 +53,19 @@ export default function Header() {
                   {user.email}
                 </p>
               </div>
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
+              {...subtleButtonMotion}
               onClick={handleLogout}
               title="Sign out"
               className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3"
             >
-              <LogOut size={12} />
+              <motion.span {...iconHoverMotion}>
+                <LogOut size={12} />
+              </motion.span>
               <span className="hidden sm:inline">Sign out</span>
-            </button>
+            </motion.button>
           </div>
         ) : (
           <div className="text-right text-sm text-slate-400">
