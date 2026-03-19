@@ -277,7 +277,7 @@ function StepHeader({ number, title, icon: Icon, count, isOpen, onToggle }) {
 }
 
 // ── Main component ───────────────────────────────────────────────
-export default function VendorMailPanel({ items = [], projectName = 'Construction Project' }) {
+export default function VendorMailPanel({ items = [], projectName = 'Construction Project', currentUser = null }) {
   const [selectedMaterials, setSelectedMaterials] = useState(new Set());
   const [materialCatFilter, setMaterialCatFilter] = useState('all');
   const [vendors, setVendors]           = useState([]);
@@ -398,7 +398,10 @@ export default function VendorMailPanel({ items = [], projectName = 'Constructio
       const unit = (item.unit || '-').padEnd(8);
       return `${String(i + 1).padEnd(4)} ${desc} ${qty} ${unit} ${item.category || ''}`;
     });
-    return `Dear Vendor,\n\nGreetings from ${proj}.\n\nProject : ${proj}\nQuote By: ${replyBy}\n\nMATERIAL REQUIREMENTS:\n${[header, divider, ...rows].join('\n')}\n\nPlease provide:\n  • Unit rate (INR) with GST breakup\n  • Delivery lead time\n  • Quote validity (minimum 30 days)\n\nReply to this email with your quotation.\n\nRegards,\nProject Manager\n${proj}`;
+    const senderName = currentUser?.full_name || 'Project Manager';
+    const senderEmail = currentUser?.email || '';
+    const contact = senderEmail ? `\n  Email : ${senderEmail}` : '';
+    return `Dear Vendor,\n\nGreetings from ${proj}.\n\nProject : ${proj}\nQuote By: ${replyBy}\n\nMATERIAL REQUIREMENTS:\n${[header, divider, ...rows].join('\n')}\n\nPlease provide:\n  • Unit rate (INR) with GST breakup\n  • Delivery lead time\n  • Quote validity (minimum 30 days)\n\nReply to this email with your quotation.\n\nRegards,\n${senderName}${contact}\n${proj}`;
   }
 
   const toggleMaterial = (i) =>
@@ -429,7 +432,11 @@ export default function VendorMailPanel({ items = [], projectName = 'Constructio
     setSending(true); setError(''); setResult(null);
     try {
       const res = await boqService.sendVendorQuoteEmail({
-        vendorEmails: allVendorEmails, materials: selectedItems, projectName,
+        vendorEmails: allVendorEmails,
+        materials: selectedItems,
+        projectName,
+        requesterName: currentUser?.full_name || 'Project Manager',
+        requesterEmail: currentUser?.email || '',
       });
       setResult(res); setOpenStep(3);
     } catch {
