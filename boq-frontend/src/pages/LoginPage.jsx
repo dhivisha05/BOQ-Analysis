@@ -183,7 +183,13 @@ export default function LoginPage() {
             </motion.button>
           </form>
 
-          <p className="text-center text-xs text-slate-400 mt-6">
+          <div className="text-center mt-4">
+            <Link to="/forgot-password" className="text-xs text-slate-400 hover:text-blue-600 transition">
+              Forgot your password?
+            </Link>
+          </div>
+
+          <p className="text-center text-xs text-slate-400 mt-4">
             Don't have an account?{' '}
             <Link to="/signup" className="font-semibold text-blue-600 hover:underline">
               Create one
