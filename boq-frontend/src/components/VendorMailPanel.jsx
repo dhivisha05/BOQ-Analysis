@@ -277,7 +277,11 @@ function StepHeader({ number, title, icon: Icon, count, isOpen, onToggle }) {
 }
 
 // ── Main component ───────────────────────────────────────────────
-export default function VendorMailPanel({ items = [], projectName = 'Construction Project', currentUser = null }) {
+const EMPTY_ITEMS = [];
+
+export default function VendorMailPanel({ items, projectName = 'Construction Project', currentUser = null }) {
+  // Use stable reference for empty array to avoid infinite re-renders
+  if (!items) items = EMPTY_ITEMS;
   const [selectedMaterials, setSelectedMaterials] = useState(new Set());
   const [materialCatFilter, setMaterialCatFilter] = useState('all');
   const [vendors, setVendors]           = useState([]);
@@ -377,7 +381,7 @@ export default function VendorMailPanel({ items = [], projectName = 'Constructio
 
   useEffect(() => {
     setSelectedMaterials(new Set(items.map((_, i) => i)));
-  }, [items]);
+  }, [items.length]);
 
   useEffect(() => {
     if (!editingEmail) {

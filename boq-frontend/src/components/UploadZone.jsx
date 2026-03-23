@@ -1,18 +1,16 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Upload, FileSpreadsheet, Loader2, AlertCircle, Zap } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useState, useId } from 'react';
 import {
   buttonMotion,
   notificationVariants,
-  panelVariants,
   scaleInVariants,
-  subtleButtonMotion,
 } from '../lib/motion';
 
 export default function UploadZone({ onUpload, loading, error }) {
-  const fileRef = useRef(null);
   const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+  const inputId = useId();
 
   const handleFile = (f) => {
     if (f && (f.name.endsWith('.xlsx') || f.name.endsWith('.xls'))) setFile(f);
@@ -25,39 +23,48 @@ export default function UploadZone({ onUpload, loading, error }) {
   };
 
   return (
-    <motion.div
-      variants={panelVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      className="max-w-2xl mx-auto"
-    >
-      <motion.div
-        {...subtleButtonMotion}
+    <div className="max-w-2xl mx-auto">
+      {/* Hidden file input — triggered by the label below */}
+      <input
+        id={inputId}
+        type="file"
+        accept=".xlsx,.xls"
+        className="sr-only"
+        onChange={(e) => {
+          handleFile(e.target.files[0]);
+          e.target.value = '';
+        }}
+      />
+
+      {/* The entire drop zone is a <label> — clicking anywhere opens the file picker natively */}
+      <label
+        htmlFor={inputId}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        onClick={() => fileRef.current?.click()}
-        className="rounded-xl p-14 text-center cursor-pointer transition-all duration-200 bg-white border-2 border-dashed"
-        style={{ borderColor: dragOver ? '#2563eb' : '#e2e8f0', background: dragOver ? '#eff6ff' : '#fff' }}
+        className="block rounded-xl p-14 text-center cursor-pointer transition-all duration-200 bg-white border-2 border-dashed hover:border-blue-400 hover:bg-blue-50/30"
+        style={{
+          borderColor: dragOver ? '#2563eb' : '#e2e8f0',
+          background: dragOver ? '#eff6ff' : undefined,
+        }}
       >
-        <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
-          onChange={(e) => handleFile(e.target.files[0])} />
-
-        <motion.div animate={{ y: dragOver ? -4 : 0, scale: dragOver ? 1.04 : 1 }}
-          className="mx-auto w-16 h-16 rounded-xl flex items-center justify-center mb-5 bg-blue-50">
+        <div className="mx-auto w-16 h-16 rounded-xl flex items-center justify-center mb-5 bg-blue-50">
           <Upload size={24} className="text-blue-600" />
-        </motion.div>
+        </div>
 
         <p className="text-lg font-semibold text-slate-800">Drop your BOQ Excel file here</p>
-        <p className="text-sm mt-1.5 text-slate-400">Supports .xlsx and .xls (max 10MB)</p>
+        <p className="text-sm mt-1.5 text-slate-400">or click anywhere to browse files</p>
 
-        <div className="flex gap-2 justify-center mt-4">
+        <span className="inline-block mt-4 px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition">
+          Browse Files
+        </span>
+
+        <div className="flex gap-2 justify-center mt-3">
           {['.xlsx', '.xls'].map((ext) => (
             <span key={ext} className="text-[11px] font-medium px-3 py-1 rounded-full bg-slate-100 text-slate-500">{ext}</span>
           ))}
         </div>
-      </motion.div>
+      </label>
 
       <AnimatePresence>
         {file && (
@@ -66,7 +73,8 @@ export default function UploadZone({ onUpload, loading, error }) {
             initial="initial"
             animate="animate"
             exit="exit"
-            className="mt-4 card flex items-center justify-between px-5 py-3.5">
+            className="mt-4 bg-white rounded-xl border border-slate-100 shadow-sm flex items-center justify-between px-5 py-3.5"
+          >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-green-50">
                 <FileSpreadsheet size={16} className="text-green-600" />
@@ -79,8 +87,8 @@ export default function UploadZone({ onUpload, loading, error }) {
             <motion.button
               {...buttonMotion}
               disabled={loading}
-              onClick={(e) => { e.stopPropagation(); onUpload(file); }}
-              className="btn-primary flex items-center gap-2 text-xs !py-2 !px-5"
+              onClick={() => onUpload(file)}
+              className="flex items-center gap-2 px-5 py-2 text-xs font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition"
             >
               {loading
                 ? <><Loader2 size={14} className="animate-spin" /> Extracting...</>
@@ -98,11 +106,12 @@ export default function UploadZone({ onUpload, loading, error }) {
             initial="initial"
             animate="animate"
             exit="exit"
-            className="mt-4 flex items-center gap-2 rounded-lg px-5 py-3 text-sm bg-red-50 border border-red-200 text-red-600">
+            className="mt-4 flex items-center gap-2 rounded-lg px-5 py-3 text-sm bg-red-50 border border-red-200 text-red-600"
+          >
             <AlertCircle size={16} /> {error}
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

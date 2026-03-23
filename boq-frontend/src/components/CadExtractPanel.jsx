@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState, useId } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -25,51 +25,28 @@ import {
 function CadUploadZone({ onFile, loading }) {
   const [dragging, setDragging] = useState(false);
   const [picked, setPicked] = useState(null);
-  const inputRef = useRef(null);
+  const inputId = useId();
 
   const handlePick = (file) => {
     if (file) setPicked(file);
   };
 
   return (
-    <motion.div
-      variants={panelVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      className="space-y-4"
-    >
-      <motion.div
-        {...subtleButtonMotion}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragging(true);
+    <div className="space-y-4">
+      {/* Hidden file input — triggered by the label */}
+      <input
+        id={inputId}
+        type="file"
+        accept=".dwg,.dxf,.pdf"
+        className="sr-only"
+        onChange={(event) => {
+          if (event.target.files[0]) handlePick(event.target.files[0]);
+          event.target.value = '';
         }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragging(false);
-          if (event.dataTransfer.files[0]) handlePick(event.dataTransfer.files[0]);
-        }}
-        onClick={() => !loading && !picked && inputRef.current?.click()}
-        className="rounded-2xl p-16 text-center transition-all duration-200 bg-white border-2 border-dashed"
-        style={{
-          borderColor: dragging ? '#7c3aed' : '#e2e8f0',
-          background: dragging ? '#faf5ff' : '#fff',
-          cursor: picked || loading ? 'default' : 'pointer',
-        }}
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".dwg,.dxf,.pdf"
-          className="hidden"
-          onChange={(event) => {
-            if (event.target.files[0]) handlePick(event.target.files[0]);
-          }}
-        />
+      />
 
-        {loading ? (
+      {loading ? (
+        <div className="rounded-2xl p-16 text-center bg-white border-2 border-dashed border-slate-200">
           <div className="space-y-4">
             <Loader2 size={44} className="mx-auto text-violet-500 animate-spin" />
             <div>
@@ -80,31 +57,42 @@ function CadUploadZone({ onFile, loading }) {
             </div>
             {picked && <p className="text-xs text-slate-400">{picked.name}</p>}
           </div>
-        ) : (
-          <>
-            <motion.div
-              animate={{ y: dragging ? -4 : 0, scale: dragging ? 1.04 : 1 }}
-              className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center mb-6 bg-violet-50"
-            >
-              <Upload size={32} className="text-violet-600" />
-            </motion.div>
-            <p className="text-xl font-semibold text-slate-800 mb-2">Upload CAD Drawing</p>
-            <p className="text-sm text-slate-400 mb-5">
-              Extract material schedules from your drawing with the CAD pipeline.
-            </p>
-            <div className="flex gap-3 justify-center">
-              {['.dwg', '.dxf', '.pdf'].map((ext) => (
-                <span
-                  key={ext}
-                  className="text-sm font-medium px-4 py-1.5 rounded-full bg-violet-50 text-violet-600"
-                >
-                  {ext}
-                </span>
-              ))}
-            </div>
-          </>
-        )}
-      </motion.div>
+        </div>
+      ) : !picked ? (
+        <label
+          htmlFor={inputId}
+          onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            if (event.dataTransfer.files[0]) handlePick(event.dataTransfer.files[0]);
+          }}
+          className="block rounded-2xl p-16 text-center cursor-pointer transition-all duration-200 bg-white border-2 border-dashed hover:border-violet-400 hover:bg-violet-50/30"
+          style={{
+            borderColor: dragging ? '#7c3aed' : '#e2e8f0',
+            background: dragging ? '#faf5ff' : undefined,
+          }}
+        >
+          <div className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center mb-6 bg-violet-50">
+            <Upload size={32} className="text-violet-600" />
+          </div>
+          <p className="text-xl font-semibold text-slate-800 mb-2">Upload CAD Drawing</p>
+          <p className="text-sm text-slate-400 mb-3">
+            Extract material schedules from your drawing with the CAD pipeline.
+          </p>
+          <span className="inline-block mb-4 px-5 py-2 bg-violet-600 text-white text-sm font-medium rounded-xl hover:bg-violet-700 transition">
+            Browse Files
+          </span>
+          <div className="flex gap-3 justify-center">
+            {['.dwg', '.dxf', '.pdf'].map((ext) => (
+              <span key={ext} className="text-sm font-medium px-4 py-1.5 rounded-full bg-violet-50 text-violet-600">
+                {ext}
+              </span>
+            ))}
+          </div>
+        </label>
+      ) : null}
 
       <AnimatePresence>
         {picked && !loading && (
@@ -146,7 +134,7 @@ function CadUploadZone({ onFile, loading }) {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 
