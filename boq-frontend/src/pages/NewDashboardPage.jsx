@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import {
   FolderKanban, Users, AlertTriangle, TrendingUp, Activity,
   Package, MessageSquare, CheckCircle, FolderPlus, Clock
@@ -10,6 +12,9 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useActivity } from '../hooks/useActivity';
 import Layout from '../components/Layout';
+import { tickerAnimation } from '../lib/gsapUtils';
+import { normalizeProjectRecord } from '../lib/projectRecord';
+import { getMyVendors } from '../services/vendorService';
 
 const ACTIVITY_ICONS = {
   boq_complete: { icon: Package, color: 'text-blue-500 bg-blue-50' },
@@ -19,10 +24,35 @@ const ACTIVITY_ICONS = {
   project_created: { icon: FolderPlus, color: 'text-indigo-500 bg-indigo-50' },
 };
 
-function StatCard({ icon: Icon, label, value, change, color }) {
+function StatCard({ icon: Icon, label, value, change, color, numericValue, prefix, suffix }) {
+  const valRef = useRef(null);
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    if (numericValue != null && valRef.current) {
+      tickerAnimation(valRef.current, numericValue, { prefix, suffix, duration: 1.2, delay: 0.2 });
+    }
+  }, [numericValue]);
+
+  // Card hover 3D tilt
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const handleMove = (e) => {
+      const rect = el.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width - 0.5) * 8;
+      const y = ((e.clientY - rect.top) / rect.height - 0.5) * -8;
+      gsap.to(el, { rotateY: x, rotateX: y, duration: 0.3, ease: 'power2.out', transformPerspective: 600 });
+    };
+    const handleLeave = () => gsap.to(el, { rotateY: 0, rotateX: 0, duration: 0.5, ease: 'elastic.out(1, 0.5)' });
+    el.addEventListener('mousemove', handleMove);
+    el.addEventListener('mouseleave', handleLeave);
+    return () => { el.removeEventListener('mousemove', handleMove); el.removeEventListener('mouseleave', handleLeave); };
+  }, []);
+
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl border border-slate-100 p-5">
+    <motion.div ref={cardRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-2xl border border-slate-100 p-5 gsap-item" style={{ willChange: 'transform' }}>
       <div className="flex items-center justify-between mb-3">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
           <Icon size={20} />
@@ -33,7 +63,7 @@ function StatCard({ icon: Icon, label, value, change, color }) {
           </span>
         )}
       </div>
-      <p className="text-2xl font-bold text-slate-800">{value}</p>
+      <p ref={numericValue != null ? valRef : undefined} className="text-2xl font-bold text-slate-800">{numericValue != null ? '0' : value}</p>
       <p className="text-xs text-slate-400 mt-0.5">{label}</p>
     </motion.div>
   );
@@ -45,21 +75,54 @@ export default function NewDashboardPage() {
   const { activities } = useActivity();
   const [stats, setStats] = useState({ projects: 0, active: 0, vendors: 0, budget: 0 });
   const [urgentActions, setUrgentActions] = useState([]);
+  const dashRef = useRef(null);
+  const panelsRef = useRef(null);
+
+  // GSAP: Stagger reveal cards and panels
+  useGSAP(() => {
+    if (!dashRef.current) return;
+    const cards = dashRef.current.querySelectorAll('.gsap-item');
+    if (cards.length) {
+      gsap.fromTo(cards,
+        { opacity: 0, y: 30, scale: 0.95 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.6, stagger: 0.1, ease: 'back.out(1.4)', delay: 0.15 }
+      );
+    }
+  }, { scope: dashRef });
+
+  useGSAP(() => {
+    if (!panelsRef.current) return;
+    const panels = panelsRef.current.querySelectorAll('.gsap-panel');
+    if (panels.length) {
+      gsap.fromTo(panels,
+        { opacity: 0, y: 40, rotateY: 5, transformPerspective: 800 },
+        { opacity: 1, y: 0, rotateY: 0, duration: 0.7, stagger: 0.12, ease: 'back.out(1.4)', delay: 0.4 }
+      );
+    }
+  }, { scope: panelsRef });
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [projRes, vendorRes] = await Promise.all([
-        supabase.from('projects').select('id, status, budget, deadline', { count: 'exact' }),
-        supabase.from('vendors').select('id', { count: 'exact' }),
+      const [projRes, vendors] = await Promise.all([
+        supabase.from('projects').select('*', { count: 'exact' }),
+        getMyVendors(user.id).catch((error) => {
+          console.error('[Dashboard] Vendors fetch error:', error.message);
+          return [];
+        }),
       ]);
-      const projects = projRes.data || [];
+      if (projRes.error) console.error('[Dashboard] Projects fetch error:', projRes.error.message);
+
+      const projects = (projRes.data || []).map((project) => normalizeProjectRecord(project));
       const activeCount = projects.filter(p => p.status === 'active').length;
-      const totalBudget = projects.reduce((s, p) => s + (Number(p.budget) || 0), 0);
+      const totalBudget = projects.reduce((s, p) => {
+        const value = Number(p.estimated_value ?? p.budget) || 0;
+        return s + value;
+      }, 0);
       setStats({
         projects: projects.length,
         active: activeCount,
-        vendors: vendorRes.count || 0,
+        vendors: vendors.length,
         budget: totalBudget,
       });
 
@@ -67,7 +130,7 @@ export default function NewDashboardPage() {
       const urgent = [];
       const now = new Date();
       projects.forEach(p => {
-        if (p.deadline && p.status === 'active') {
+        if (p.id && p.deadline && p.status === 'active') {
           const days = Math.ceil((new Date(p.deadline) - now) / 86400000);
           if (days <= 3 && days >= 0) {
             urgent.push({ type: 'deadline', severity: 'high', text: `Deadline in ${days} day${days !== 1 ? 's' : ''}`, projectId: p.id });
@@ -87,18 +150,20 @@ export default function NewDashboardPage() {
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 stagger-children">
-          <StatCard icon={FolderKanban} label="Total Projects" value={stats.projects} color="bg-blue-50 text-blue-600" />
-          <StatCard icon={TrendingUp} label="Active Projects" value={stats.active} color="bg-emerald-50 text-emerald-600" />
-          <StatCard icon={Users} label="Total Vendors" value={stats.vendors} color="bg-purple-50 text-purple-600" />
+        <div ref={dashRef} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <StatCard icon={FolderKanban} label="Total Projects" value={stats.projects} numericValue={stats.projects} color="bg-blue-50 text-blue-600" />
+          <StatCard icon={TrendingUp} label="Active Projects" value={stats.active} numericValue={stats.active} color="bg-emerald-50 text-emerald-600" />
+          <StatCard icon={Users} label="Total Vendors" value={stats.vendors} numericValue={stats.vendors} color="bg-purple-50 text-purple-600" />
           <StatCard icon={TrendingUp} label="Total Budget"
             value={stats.budget > 0 ? `${(stats.budget / 100000).toFixed(1)}L` : '0'}
+            numericValue={stats.budget > 0 ? Math.round(stats.budget / 100000 * 10) / 10 : null}
+            suffix="L"
             color="bg-amber-50 text-amber-600" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div ref={panelsRef} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Urgent Actions */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 gsap-panel">
             <div className="flex items-center gap-2 mb-4">
               <AlertTriangle size={16} className="text-amber-500" />
               <h3 className="text-sm font-semibold text-slate-700">Urgent Actions</h3>
@@ -127,7 +192,7 @@ export default function NewDashboardPage() {
           </div>
 
           {/* Project Pipeline */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 gsap-panel">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp size={16} className="text-blue-500" />
               <h3 className="text-sm font-semibold text-slate-700">Project Pipeline</h3>
@@ -145,7 +210,7 @@ export default function NewDashboardPage() {
           </div>
 
           {/* Recent Activity */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 gsap-panel">
             <div className="flex items-center gap-2 mb-4">
               <Activity size={16} className="text-indigo-500" />
               <h3 className="text-sm font-semibold text-slate-700">Recent Activity</h3>

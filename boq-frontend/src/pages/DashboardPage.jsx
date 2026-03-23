@@ -294,6 +294,7 @@ export default function DashboardPage() {
                     <VendorMailPanel
                       items={allItems}
                       projectName={boqFile?.name?.replace(/\.(xlsx|xls)$/, '') || 'Construction Project'}
+                      userId={user?.id}
                       currentUser={user}
                     />
                   </motion.div>

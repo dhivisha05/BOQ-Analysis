@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   Mail, Users, Package, ChevronDown, ChevronUp,
   CheckSquare, Square, Star, Send, Plus, X, MapPin,
   Phone, Award, Building2, FileText, Sparkles,
-  Zap, Shield, RefreshCw, Clock
+  Zap, Shield, RefreshCw, Clock, Search
 } from 'lucide-react';
 import { boqService } from '../services/BoqService';
+import { supabase } from '../supabaseClient';
+import { getMyVendors } from '../services/vendorService';
 
 // ── Category helpers ─────────────────────────────────────────────
 const CAT_COLORS = {
@@ -279,14 +282,15 @@ function StepHeader({ number, title, icon: Icon, count, isOpen, onToggle }) {
 // ── Main component ───────────────────────────────────────────────
 const EMPTY_ITEMS = [];
 
-export default function VendorMailPanel({ items, projectName = 'Construction Project', currentUser = null }) {
+export default function VendorMailPanel({ items, projectName = 'Construction Project', userId, currentUser = null }) {
   // Use stable reference for empty array to avoid infinite re-renders
   if (!items) items = EMPTY_ITEMS;
+  const navigate = useNavigate();
   const [selectedMaterials, setSelectedMaterials] = useState(new Set());
   const [materialCatFilter, setMaterialCatFilter] = useState('all');
   const [vendors, setVendors]           = useState([]);
   const [selectedVendors, setSelectedVendors] = useState(new Set());
-  const [vendorFilter, setVendorFilter] = useState('all');
+  const [vendorSearch, setVendorSearch] = useState('');
   const [manualEmail, setManualEmail]   = useState('');
   const [manualEmails, setManualEmails] = useState([]);
   const [emailBody, setEmailBody]       = useState('');
@@ -352,24 +356,63 @@ export default function VendorMailPanel({ items, projectName = 'Construction Pro
     })
   ), [vendors, vendorAiScores]);
 
-  // ── Fetch vendors ────────────────────────────────────────────
+  const filteredVendors = useMemo(() => {
+    const term = vendorSearch.trim().toLowerCase();
+    if (!term) return sortedVendors;
+
+    return sortedVendors.filter((vendor) => (
+      vendor.name?.toLowerCase().includes(term) ||
+      vendor.location?.toLowerCase().includes(term) ||
+      vendor.categories?.some((category) => category.toLowerCase().includes(term))
+    ));
+  }, [sortedVendors, vendorSearch]);
+
+  // ── Fetch user's own vendors from Supabase ───────────────────
   const loadVendors = useCallback(() => {
+    const ownerId = userId || currentUser?.id;
+    if (!ownerId) return;
     setLoadingVendors(true);
-    boqService.getVendors(null, vendorFilter === 'all' ? null : vendorFilter)
+    getMyVendors(ownerId)
       .then(data => {
-        setVendors(data.vendors || []);
+        // Map Supabase vendor shape to the shape this component expects
+        const mapped = (data || []).map(v => ({
+          id:             v.id,
+          name:           v.company_name,
+          email:          v.email,
+          phone:          v.phone || '',
+          location:       v.location || '',
+          contact_person: v.contact_person || '',
+          categories:     v.categories || [],
+          rating:         v.rating || 4.0,
+          type:           v.status === 'active' ? 'new' : 'past',
+          certifications: [],
+          specialization: v.categories || [],
+          past_projects:  [],
+          makes_approved: false,
+        }));
+        setVendors(mapped);
         setSecondsAgo(0);
       })
       .catch(() => setVendors([]))
       .finally(() => setLoadingVendors(false));
-  }, [vendorFilter]);
+  }, [currentUser?.id, userId]);
 
-  // Initial load + auto-refresh every 30 seconds
+  // Initial load
   useEffect(() => {
     loadVendors();
-    intervalRef.current = setInterval(loadVendors, 30000);
-    return () => clearInterval(intervalRef.current);
   }, [loadVendors]);
+
+  // Realtime subscription for vendor changes
+  useEffect(() => {
+    const ownerId = userId || currentUser?.id;
+    if (!ownerId) return;
+    const channel = supabase.channel('mail-vendors-' + ownerId)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'vendors',
+      }, () => loadVendors())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUser?.id, loadVendors, userId]);
 
   // "X seconds ago" ticker
   useEffect(() => {
@@ -642,19 +685,32 @@ export default function VendorMailPanel({ items, projectName = 'Construction Pro
                   </div>
                 )}
 
-                {/* Filter tabs */}
-                <div className="flex gap-2 mb-5">
-                  {['all', 'recommended', 'past', 'new'].map(f => (
-                    <button key={f} onClick={() => setVendorFilter(f)}
-                      className={`text-sm font-medium px-4 py-2 rounded-xl capitalize transition-all duration-200 ${
-                        vendorFilter === f
-                          ? 'bg-slate-800 text-white'
-                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                      }`}>
-                      {f}
+                {/* Vendor search */}
+                {vendors.length > 0 && (
+                  <div className="relative mb-5">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={vendorSearch}
+                      onChange={(e) => setVendorSearch(e.target.value)}
+                      placeholder="Search by name, category, or location..."
+                      className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-700 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
+                    />
+                  </div>
+                )}
+
+                {vendors.length === 0 && !loadingVendors && (
+                  <div className="rounded-xl px-5 py-6 bg-slate-50 border border-dashed border-slate-200 text-center mb-5">
+                    <p className="text-sm font-medium text-slate-600 mb-1">You haven&apos;t added any vendors yet.</p>
+                    <p className="text-xs text-slate-400 mb-4">Add vendors to your personal list before sending quote requests.</p>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/vendors')}
+                      className="btn-primary text-sm"
+                    >
+                      Add Vendors
                     </button>
-                  ))}
-                </div>
+                  </div>
+                )}
 
                 {/* Vendor cards */}
                 <div className="max-h-[800px] overflow-y-auto space-y-3 mb-5 pr-1">
@@ -663,9 +719,9 @@ export default function VendorMailPanel({ items, projectName = 'Construction Pro
                       <RefreshCw size={24} className="mx-auto mb-3 text-slate-400 animate-spin" />
                       <p className="text-sm text-slate-400">Loading vendor data...</p>
                     </div>
-                  ) : sortedVendors.length === 0 ? (
-                    <p className="text-sm text-slate-400 py-8 text-center">No vendors found</p>
-                  ) : sortedVendors.map(vendor => (
+                  ) : filteredVendors.length === 0 ? (
+                    <p className="text-sm text-slate-400 py-8 text-center">No vendors match your search.</p>
+                  ) : filteredVendors.map(vendor => (
                     <VendorProfileCard
                       key={vendor.id}
                       vendor={vendor}
