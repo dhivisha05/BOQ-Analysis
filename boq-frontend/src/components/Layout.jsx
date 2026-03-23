@@ -14,7 +14,6 @@ const NAV_ITEMS = [
   { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/projects',   icon: FolderKanban,    label: 'Projects' },
   { to: '/vendors',    icon: Users,           label: 'Vendors' },
-  { to: '/documents',  icon: FileText,        label: 'Documents' },
   { to: '/settings',   icon: Settings,        label: 'Settings' },
 ];
 
@@ -183,7 +182,7 @@ export default function Layout({ children }) {
               className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-400 hover:border-slate-300 transition"
             >
               <Search size={16} />
-              <span>Search projects, vendors, documents...</span>
+              <span>Search projects, vendors...</span>
               <kbd className="ml-auto text-[10px] bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-400">Ctrl+K</kbd>
             </button>
           </div>
