@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileSpreadsheet, Layers, BarChart3, Users, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../context/AuthContext';
+import BoqService from '../services/BoqService';
 import Layout from '../components/Layout';
 import UploadZone from '../components/UploadZone';
 import ResultsDashboard from '../components/ResultsDashboard';
@@ -22,15 +24,22 @@ const TABS = [
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('boq');
 
-  // BOQ extraction state (reuse existing logic)
+  // BOQ extraction state
   const [boqResult, setBoqResult] = useState(null);
   const [cadResult, setCadResult] = useState(null);
-  const [comparisonResult, setComparisonResult] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [cadFile, setCadFile] = useState(null);
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState(null);
+
+  // Stable items references
+  const boqItems = useMemo(() => boqResult?.items || [], [boqResult]);
+  const cadItems = useMemo(() => cadResult?.items || [], [cadResult]);
 
   useEffect(() => {
     (async () => {
@@ -41,6 +50,21 @@ export default function ProjectDetailPage() {
     })();
   }, [id, navigate]);
 
+  const handleBoqUpload = async (file) => {
+    setExtracting(true);
+    setExtractError(null);
+    try {
+      const data = await BoqService.extractLangGraph(file);
+      setBoqResult(data);
+      toast.success(`Extracted ${data.extracted_items || data.items?.length || 0} materials`);
+    } catch (err) {
+      setExtractError(err.response?.data?.detail || err.message || 'Failed to extract materials');
+      toast.error('Extraction failed');
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -50,12 +74,6 @@ export default function ProjectDetailPage() {
       </Layout>
     );
   }
-
-  const filteredItems = boqResult?.items
-    ? selectedCategory === 'All'
-      ? boqResult.items
-      : boqResult.items.filter(i => i.category === selectedCategory)
-    : [];
 
   return (
     <Layout>
@@ -92,18 +110,28 @@ export default function ProjectDetailPage() {
           <div>
             {!boqResult ? (
               <div className="max-w-2xl mx-auto">
-                <UploadZone onResult={setBoqResult} />
+                <UploadZone onUpload={handleBoqUpload} loading={extracting} error={extractError} />
               </div>
             ) : (
               <div className="space-y-4">
-                <ResultsDashboard result={boqResult} />
-                <div className="flex gap-4">
-                  <CategorySidebar result={boqResult} selected={selectedCategory} onSelect={setSelectedCategory} />
-                  <div className="flex-1">
-                    <DataTable items={filteredItems} />
+                <ResultsDashboard results={boqResult} />
+                <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+                  <div className="xl:col-span-1">
+                    <CategorySidebar
+                      categories={boqResult.categories || {}}
+                      activeCategory={activeCategory}
+                      onCategoryChange={setActiveCategory}
+                    />
+                  </div>
+                  <div className="xl:col-span-4">
+                    <DataTable
+                      items={boqResult.items || []}
+                      activeCategory={activeCategory}
+                      title="BOQ Extracted Materials"
+                    />
                   </div>
                 </div>
-                <button onClick={() => setBoqResult(null)}
+                <button onClick={() => { setBoqResult(null); setActiveCategory(null); }}
                   className="flex items-center gap-2 px-4 py-2 text-sm text-slate-500 bg-slate-100 rounded-xl hover:bg-slate-200">
                   <Upload size={14} /> Upload New BOQ
                 </button>
@@ -114,26 +142,30 @@ export default function ProjectDetailPage() {
 
         {tab === 'cad' && (
           <CadExtractPanel
-            boqResult={boqResult}
-            cadResult={cadResult}
-            onCadResult={setCadResult}
+            existingCadData={cadResult}
+            existingCadFile={cadFile}
+            onExtracted={(data, file) => { setCadResult(data); setCadFile(file); }}
+            onGoToCompare={() => setTab('compare')}
+            onSkip={() => setTab('vendors')}
           />
         )}
 
         {tab === 'compare' && (
           <ComparisonPanel
-            boqResult={boqResult}
-            cadResult={cadResult}
-            comparisonResult={comparisonResult}
-            onComparisonResult={setComparisonResult}
+            boqItems={boqItems}
+            cadItems={cadItems}
+            projectName={project?.project_name || 'Construction Project'}
+            currentUser={user}
+            onApproved={() => setTab('vendors')}
+            onNeedsReview={() => {}}
           />
         )}
 
         {tab === 'vendors' && (
           <VendorMailPanel
-            boqResult={boqResult}
-            cadResult={cadResult}
-            comparisonResult={comparisonResult}
+            items={boqItems}
+            projectName={project?.project_name || 'Construction Project'}
+            currentUser={user}
           />
         )}
       </div>

@@ -195,7 +195,7 @@ export default function ProjectsPage() {
             description="Create your first project to start extracting BOQ materials"
             action={() => setShowCreate(true)} actionLabel="Create Project" />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
             {filtered.map(p => (
               <ProjectCard key={p.id} project={p}
                 onClick={(id) => navigate(`/projects/${id}`)}

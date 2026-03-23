@@ -57,14 +57,18 @@ export default function LoginPage() {
       initial="initial"
       animate="animate"
       exit="exit"
-      className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-12"
+      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/30 flex items-center justify-center px-4 py-12 relative overflow-hidden"
     >
+      {/* Background decorative circles */}
+      <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-blue-100/40 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -left-32 w-[500px] h-[500px] rounded-full bg-indigo-100/30 blur-3xl pointer-events-none" />
+
       <motion.div
         variants={scaleInVariants}
         initial="initial"
         animate="animate"
         exit="exit"
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
         <div className="flex items-center justify-center gap-3 mb-8">
           <motion.div layoutId="auth-brand-mark" className="rounded-lg p-2 bg-blue-600">
@@ -80,7 +84,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <motion.div layoutId="auth-card" className="card p-8">
+        <motion.div layoutId="auth-card" className="bg-white/80 backdrop-blur-xl rounded-2xl border border-white/60 shadow-xl shadow-blue-100/20 p-8">
           <div className="mb-6">
             <h3 className="text-lg font-bold text-slate-900">Welcome back</h3>
             <p className="text-sm text-slate-400 mt-1">

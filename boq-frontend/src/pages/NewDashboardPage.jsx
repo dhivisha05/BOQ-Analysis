@@ -87,7 +87,7 @@ export default function NewDashboardPage() {
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 stagger-children">
           <StatCard icon={FolderKanban} label="Total Projects" value={stats.projects} color="bg-blue-50 text-blue-600" />
           <StatCard icon={TrendingUp} label="Active Projects" value={stats.active} color="bg-emerald-50 text-emerald-600" />
           <StatCard icon={Users} label="Total Vendors" value={stats.vendors} color="bg-purple-50 text-purple-600" />

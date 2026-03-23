@@ -10,10 +10,11 @@ export function useVendors() {
   const fetch = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('vendors')
       .select('*')
       .order('created_at', { ascending: false });
+    if (error) console.error('[Vendors] Fetch error:', error.message);
     setVendors(data || []);
     setLoading(false);
   }, [user]);
@@ -33,6 +34,8 @@ export function useVendors() {
       .select()
       .single();
     if (error) throw error;
+    // Immediately add to local state so the list updates without waiting for realtime
+    setVendors(prev => [data, ...prev]);
     return data;
   };
 
@@ -44,12 +47,16 @@ export function useVendors() {
       .select()
       .single();
     if (error) throw error;
+    // Immediately update local state
+    setVendors(prev => prev.map(v => v.id === id ? data : v));
     return data;
   };
 
   const deleteVendor = async (id) => {
     const { error } = await supabase.from('vendors').delete().eq('id', id);
     if (error) throw error;
+    // Immediately remove from local state
+    setVendors(prev => prev.filter(v => v.id !== id));
   };
 
   return { vendors, loading, addVendor, updateVendor, deleteVendor, refetch: fetch };

@@ -10,17 +10,17 @@ export function useProjects() {
   const fetch = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('projects')
       .select('*')
       .order('created_at', { ascending: false });
+    if (error) console.error('[Projects] Fetch error:', error.message);
     setProjects(data || []);
     setLoading(false);
   }, [user]);
 
   useEffect(() => {
     fetch();
-    // Realtime
     const channel = supabase.channel('projects-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => fetch())
       .subscribe();
@@ -34,6 +34,7 @@ export function useProjects() {
       .select()
       .single();
     if (error) throw error;
+    setProjects(prev => [data, ...prev]);
     return data;
   };
 
@@ -45,12 +46,14 @@ export function useProjects() {
       .select()
       .single();
     if (error) throw error;
+    setProjects(prev => prev.map(p => p.id === id ? data : p));
     return data;
   };
 
   const deleteProject = async (id) => {
     const { error } = await supabase.from('projects').delete().eq('id', id);
     if (error) throw error;
+    setProjects(prev => prev.filter(p => p.id !== id));
   };
 
   const duplicateProject = async (project) => {

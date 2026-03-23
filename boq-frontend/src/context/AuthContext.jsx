@@ -69,49 +69,53 @@ export function AuthProvider({ children }) {
   // ── Listen to auth state changes ──────────────────────────────────────
   useEffect(() => {
     let settled = false;
-    const settle = () => { if (!settled) { settled = true; setAuthLoading(false); } };
+    const settle = () => {
+      if (!settled) {
+        settled = true;
+        setAuthLoading(false);
+      }
+    };
 
-    // Safety timeout — never stay stuck on "Loading FlyyyAI..." for more than 3s
+    // Safety timeout — never stay stuck on "Loading FlyyyAI..."
     const timer = setTimeout(() => {
       if (!settled) {
-        console.warn('[Auth] Session check timed out — redirecting to login');
-        supabase.auth.signOut().catch(() => {});
-        setUser(null);
-        setSession(null);
-        setProfile(null);
+        console.warn('[Auth] Session check timed out after 5s — showing app');
         settle();
       }
-    }, 3000);
+    }, 5000);
 
-    // Subscribe to auth changes FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, s) => {
+    // Helper: apply a session (or null) to state, then settle
+    const applySession = (s) => {
+      try {
         setSession(s);
         setUser(s?.user ?? null);
         if (s?.user) {
           BoqService.setAuthToken(s.access_token);
-          await fetchProfile(s.user.id);
+          fetchProfile(s.user.id).catch(() => {});
         } else {
           setProfile(null);
           BoqService.setAuthToken(null);
         }
+      } catch (err) {
+        console.error('[Auth] applySession error:', err);
+      }
+      settle();
+    };
+
+    // 1. Get stored session immediately
+    supabase.auth.getSession()
+      .then(({ data: { session: s } }) => applySession(s))
+      .catch((err) => {
+        console.error('[Auth] getSession failed:', err);
         settle();
+      });
+
+    // 2. Listen for future auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, s) => {
+        applySession(s);
       }
     );
-
-    // Then get initial session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        BoqService.setAuthToken(s.access_token);
-        fetchProfile(s.user.id).catch(() => {});
-      }
-      settle();
-    }).catch((err) => {
-      console.error('[Auth] getSession failed:', err);
-      settle();
-    });
 
     return () => {
       clearTimeout(timer);
