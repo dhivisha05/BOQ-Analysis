@@ -204,7 +204,7 @@ export default function ComparisonPanel({
             <ArrowLeftRight size={22} className="text-indigo-500" />
           </div>
         </div>
-        <h3 className="text-lg font-semibold text-slate-700 mb-2">Analysing documents...</h3>
+        <h3 className="text-lg font-semibold text-slate-700 mb-2">Analysing files...</h3>
         <p className="text-sm text-slate-400">
           Comparing {boqItems.length} BOQ items with {cadItems.length} CAD materials
         </p>
