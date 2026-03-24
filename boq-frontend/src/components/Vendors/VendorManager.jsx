@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useId, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -36,6 +37,7 @@ const CAT_COLORS = {
    Main Component
    ═══════════════════════════════════════════════════════════════ */
 export default function VendorManager({ userId, projectId, projectName, mode = 'standalone', onComplete }) {
+  const navigate = useNavigate();
   const [vendors, setVendors]     = useState([]);
   const [loading, setLoading]     = useState(true);
   const [tab, setTab]             = useState('list');
@@ -176,6 +178,7 @@ export default function VendorManager({ userId, projectId, projectName, mode = '
           onGoAdd={() => setTab('add')}
           onGoBulk={() => setTab('bulk')}
           tableRef={tableRef}
+          navigate={navigate}
         />
       )}
 
@@ -205,7 +208,7 @@ export default function VendorManager({ userId, projectId, projectName, mode = '
 /* ═══════════════════════════════════════════════════════════════
    Vendor List Tab
    ═══════════════════════════════════════════════════════════════ */
-function VendorListTab({ vendors, loading, search, onSearch, onDelete, onGoAdd, onGoBulk, tableRef }) {
+function VendorListTab({ vendors, loading, search, onSearch, onDelete, onGoAdd, onGoBulk, tableRef, navigate }) {
   if (loading) {
     return (
       <div className="space-y-3">
@@ -255,8 +258,14 @@ function VendorListTab({ vendors, loading, search, onSearch, onDelete, onGoAdd, 
                       <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">
                         {(v.company_name || '?')[0].toUpperCase()}
                       </div>
-                      <div>
-                        <p className="font-medium text-slate-700">{v.company_name}</p>
+                      <div 
+                        onClick={() => {
+                          console.log("Clicked vendor:", v);
+                          navigate(`/vendors/${v.id}`);
+                        }}
+                        className="cursor-pointer group/name"
+                      >
+                        <p className="font-medium text-slate-700 group-hover/name:text-blue-600 transition-colors uppercase tracking-tight">{v.company_name}</p>
                         {v.location && <p className="text-xs text-slate-400">{v.location}</p>}
                       </div>
                     </div>
